@@ -4,7 +4,8 @@
 #include <string.h>
 
 #define MAX_LIST_SIZE 50 // 定义链表的最大节点数
-#define ARRAY_SIZE 20 // 定义数组的大小
+#define ARRAY_SIZE 20    // 定义数组的大小
+#define WINDOW_SIZE 10   // 定义窗口大小
 
 // 定义链表节点结构
 typedef struct
@@ -24,7 +25,7 @@ typedef struct
 } List;
 
 // 初始化链表
-void initList(List *list)
+void init_List(List *list)
 {
     list->head = -1;
     list->free = 0;
@@ -39,7 +40,7 @@ void initList(List *list)
 }
 
 // 分配新节点
-int allocNode(List *list)
+int alloc_Node(List *list)
 {
     if (list->free == -1)
     {
@@ -53,7 +54,7 @@ int allocNode(List *list)
 }
 
 // 释放节点
-void freeNode(List *list, int node)
+void free_Node(List *list, int node)
 {
     list->nodes[node].next = list->free;
     list->free = node;
@@ -61,9 +62,9 @@ void freeNode(List *list, int node)
 }
 
 // 在链表末尾插入数据
-bool insertArrayAtEnd(List *list, float data_array[ARRAY_SIZE])
+bool insert_Array_And_Slide(List *list, float data_array[ARRAY_SIZE])
 {
-    int newNode = allocNode(list);
+    int newNode = alloc_Node(list);
     if (newNode == -1)
         return false;
 
@@ -84,13 +85,21 @@ bool insertArrayAtEnd(List *list, float data_array[ARRAY_SIZE])
         list->nodes[newNode].next = list->head;
         list->nodes[last].next = newNode;
         list->nodes[list->head].prev = newNode;
-    }
 
-    return true;
+        // 如果链表长度超过窗口大小，则删除旧的节点
+        if (list->size > WINDOW_SIZE)
+        {
+            int oldestNode = list->head;
+            list->head = list->nodes[list->head].next;
+            list->nodes[list->nodes[oldestNode].prev].next = list->head;
+            list->nodes[list->head].prev = list->nodes[oldestNode].prev;
+            free_Node(list, oldestNode);
+        }
+    }
 }
 
 // 删除指定值的节点
-bool deleteNode(List *list, int nodeIndex)
+bool delete_Node(List *list, int nodeIndex)
 {
     if (list->head == -1 || nodeIndex < 0 || nodeIndex >= MAX_LIST_SIZE)
         return false;
@@ -118,7 +127,7 @@ bool deleteNode(List *list, int nodeIndex)
                     list->head = next;
                 }
             }
-            freeNode(list, current);
+            free_Node(list, current);
             return true;
         }
         current = list->nodes[current].next;
@@ -142,7 +151,7 @@ void printList(List *list)
     do
     {
         printf("节点 %d: \n", nodeIndex);
-       for(int i = 0; i < ARRAY_SIZE; i++)
+        for (int i = 0; i < ARRAY_SIZE; i++)
         {
             printf("%.1f ", list->nodes[current].data[i]);
         }
@@ -151,33 +160,48 @@ void printList(List *list)
     } while (current != list->head);
 }
 
+void print_windows(List *list)
+{
+    if (list->head == -1)
+    {
+        printf("链表为空\n");
+        return;
+    }
+
+    int current = list->head;
+    int nodeIndex = 0;
+    do
+    {
+        printf("帧 %d: ", nodeIndex++);
+        for (int i = 0; i < ARRAY_SIZE; i++)
+        {
+            printf("%.2f ", list->nodes[current].data[i]);
+        }
+        printf("\n");
+        current = list->nodes[current].next;
+    } while (current != list->head && nodeIndex < WINDOW_SIZE);
+}
+
 int main()
 {
-    List lists;
-    initList(&lists);
+    List list;
+    init_List(&list);
 
-     // 创建一些测试数据
-    float datafft1[ARRAY_SIZE] = {1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.0,
-                                  11.1, 12.2, 13.3, 14.4, 15.5, 16.6, 17.7, 18.8, 19.9, 20.0};
-    float datafft2[ARRAY_SIZE] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                  1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0};
+    // 模拟15帧数据
+    for (int frame = 0; frame < 15; frame++)
+    {
+        float datafft[ARRAY_SIZE];
+        for (int i = 0; i < ARRAY_SIZE; i++)
+        {
+            datafft[i] = frame + i * 0.1f; // 生成示例数据
+        }
 
-    // 插入数组数据
-    insertArrayAtEnd(&lists, datafft1);
-    insertArrayAtEnd(&lists, datafft2);
+        insert_Array_And_Slide(&list, datafft);
 
-    printf("原始链表: ");
-    printList(&lists);
-
-    // 删除一个节点
-    deleteNode(&lists, 0);
-    printf("删除第一个节点后: \n");
-    printList(&lists);
-
- // 再次插入数据
-    insertArrayAtEnd(&lists, datafft1);
-    printf("\n再次插入数据后:\n");
-    printList(&lists);
+        printf("插入帧 %d 后的滑动窗口:\n", frame);
+        print_windows(&list);
+        printf("\n");
+    }
 
     return 0;
 }
